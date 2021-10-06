@@ -108,10 +108,67 @@ public class AutoConfigureMock {
 
 ## Mock
 - Mock.mock()
+  - 객체를 목킹하는 기본적인 방법
 - @Mock
+  - 위외 같은 일을 에너테이션으로 할 수 있다.
 - @InjectMock
-- @MockBean
+  - 목킹된 객체를 의존주입한 객체를 생성한다.
 - @Spy
+  - 목킹을 사용하되, 일부 스텁은 원래의 기능을 사용하고 싶을때 쓴다.
+  - when().then() 처럼 스텁을 명시적으로 지정하지 않은 부분에 대해서는 실제 구현을 사용한다.
+- @MockBean
+  - @SpringbootTest 로 서버를 띄운 테스트에서 사용한다.
+  - 목킹된 빈이 스프링 빈에 등록된다.
+  - @InjectMock 객체가 아닌 @Autowired 객체에 의존주입을 할 때 사용.
 - @SpyBean
-
+  - @SpringbootTest 에 사용된다.
+  - Spy 객체가 빈으로 등록된다.
+  
 ## JSON Test
+```java
+data class Car(
+    val name: String,
+    val price: Int,
+    val driven: Int
+)
+```
+
+```java
+@RunWith(SpringJUnit4ClassRunner::class)
+@JsonTest
+class CarTest {
+
+  @Autowired
+  private var json: JacksonTester<Car>? = null
+
+  @Test
+  fun serialize() {
+    val car = Car(name = "Benz", driven = 10000, price = 50000)
+
+    // car.json 은 resource 에 위치.
+    assertThat(json!!.write(car)).isEqualToJson("/car.json")
+
+    assertThat(json!!.write(car)).hasJsonPathStringValue("@.name")
+    assertThat(json!!.write(car)).hasJsonPathNumberValue("@.driven")
+    assertThat(json!!.write(car)).hasJsonPathNumberValue("@.price")
+
+    assertThat(json!!.write(car)).extractingJsonPathStringValue("@.name").isEqualTo("Benz")
+    assertThat(json!!.write(car)).extractingJsonPathNumberValue("@.driven").isEqualTo(10000)
+    assertThat(json!!.write(car)).extractingJsonPathNumberValue("@.price").isEqualTo(50000)
+
+    assertThat(json!!.write(car)).extractingJsonPathNumberValue("@.price")
+            .satisfies { price -> assertThat(price.toFloat()).isCloseTo(49999f, within(5f)) }
+  }
+
+
+  @Test
+  fun deSerialize() {
+    val content = "{\"name\":\"Benz\",\"price\":\"50000\",\"driven\":\"10000\"}"
+    assertThat(json!!.parse(content)).isEqualTo(Car(name = "Benz", driven = 10000, price = 50000))
+
+    assertThat(json!!.parseObject(content).name).isEqualTo("Benz")
+    assertThat(json!!.parseObject(content).driven).isEqualTo(10000)
+    assertThat(json!!.parseObject(content).price).isEqualTo(50000)
+  }
+}
+```
